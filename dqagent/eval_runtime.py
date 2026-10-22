@@ -37,6 +37,17 @@ class Chat:
             payload["response_format"] = {"type": "json_object"}
         request = urllib.request.Request(self.endpoint.rstrip("/") + "/chat/completions",
             data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "agent-evaluation/1.0", "Authorization": "Bearer " + self.key})
+        pacing_wait = 0.0
+        interval = float(os.environ.get("LLM_REQUEST_INTERVAL_SECONDS", "0"))
+        pacing_path = os.environ.get("LLM_PACING_FILE")
+        if not 0 <= interval <= 60:
+            raise ValueError("Request interval must be between 0 and 60 seconds")
+        if interval and pacing_path:
+            timestamp = Path(pacing_path)
+            previous = float(timestamp.read_text()) if timestamp.exists() else 0.0
+            pacing_wait = max(0.0, min(interval, interval - (time.time() - previous)))
+            time.sleep(pacing_wait)
+            timestamp.write_text(str(time.time()))
         started = time.monotonic()
         try:
             with urllib.request.urlopen(request, timeout=45) as response:
@@ -45,14 +56,14 @@ class Chat:
             detail = error.read(16_384).decode(errors="replace").replace(self.key, "[REDACTED]")
             detail = re.sub(r"(?:gsk_|sk-)[A-Za-z0-9_-]+", "[REDACTED]", detail)
             detail = re.sub(r"Bearer\s+[^\s\"']+", "Bearer [REDACTED]", detail)
-            self.calls.append({"request_hash": digest(payload), "response": None,
+            self.calls.append({"pacing_wait_seconds": round(pacing_wait, 3), "request_hash": digest(payload), "response": None,
                 "http_status": error.code, "provider_error_body": detail,
                 "usage": None, "seconds": round(time.monotonic() - started, 3)})
             self.save_calls()
             raise
         choice = body["choices"][0]
         content = choice["message"]["content"]
-        self.calls.append({"request_hash": digest(payload), "response": content,
+        self.calls.append({"pacing_wait_seconds": round(pacing_wait, 3), "request_hash": digest(payload), "response": content,
             "returned_model": body.get("model"), "usage": body.get("usage"),
             "finish_reason": choice.get("finish_reason"),
             "seconds": round(time.monotonic() - started, 3)})
@@ -123,9 +134,11 @@ def worker_error(stderr: str, returncode: int) -> dict:
     return result
 
 
-def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, output: Path, repeats: int = 1, metadata: dict | None = None) -> dict:
+def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, output: Path, repeats: int = 1, metadata: dict | None = None, request_interval: float = 0) -> dict:
     if not 1 <= repeats <= 5 or not model:
         raise ValueError("Specify a model and between 1 and 5 repeats")
+    if not 0 <= request_interval <= 60:
+        raise ValueError("Request interval must be between 0 and 60 seconds")
     if not os.environ.get("LLM_API_KEY"):
         raise ValueError("Set LLM_API_KEY locally or as a GitHub Actions secret; never paste it in chat")
     output = Path(output)
@@ -133,11 +146,11 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
     if output.exists():
         raise FileExistsError("Choose a new output path to preserve previous runs")
     report = {"mode": "live_model_evaluation", "started_at": datetime.now(timezone.utc).isoformat(),
-        "model": model, "configuration": metadata or {}, "commit": os.environ.get("GITHUB_SHA"),
+        "model": model, "configuration": {**(metadata or {}), "request_interval_seconds": request_interval}, "commit": os.environ.get("GITHUB_SHA"),
         "code_hashes": {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(module.split(".")[0]).glob("*.py")},
         "dataset_hash": digest(cases), "cases": cases, "repeats": repeats,
         "max_output_tokens_per_call": 1600, "results": [],
-        "limitations": "Small public benchmark; prompt-hidden tests are not contamination-proof. Failures remain in denominator. No production reliability claim. Token usage is provider-reported, not dollar cost."}
+        "limitations": "Attempt seconds include pacing; call seconds exclude pacing. Small public benchmark; prompt-hidden tests are not contamination-proof. Failures remain in denominator. No production reliability claim. Token usage is provider-reported, not dollar cost."}
     with tempfile.TemporaryDirectory() as directory:
         for repeat in range(repeats):
             for case in cases:
@@ -152,7 +165,7 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
                     row = {"case": case["id"], "repeat": repeat, "method": method, "status": "error", "success": False}
                     started = time.monotonic()
                     # OS timeout also bounds repeated model calls. Child errors cannot silently drop an attempt.
-                    process = subprocess.run(["timeout", "420", sys.executable, "-m", module, "--worker", str(request)], capture_output=True, text=True, env=dict(os.environ, TYPER_STANDARD_TRACEBACK="1", NO_COLOR="1"))
+                    process = subprocess.run(["timeout", str(420 + int(6 * request_interval)), sys.executable, "-m", module, "--worker", str(request)], capture_output=True, text=True, env=dict(os.environ, TYPER_STANDARD_TRACEBACK="1", NO_COLOR="1", LLM_REQUEST_INTERVAL_SECONDS=str(request_interval), LLM_PACING_FILE=str(Path(directory) / "last-request.txt")))
                     if process.returncode == 0 and result.exists():
                         row.update(json.loads(result.read_text()))
                     else:

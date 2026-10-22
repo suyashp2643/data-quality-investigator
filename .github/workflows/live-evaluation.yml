@@ -16,6 +16,11 @@ on:
         default: '2605'
         required: true
         type: string
+      request_interval:
+        description: Seconds between model requests (0 to 60; 30 recommended for initial Groq runs)
+        default: '30'
+        required: true
+        type: string
       repeats:
         description: Repetitions per case (1 to 5)
         default: '1'
@@ -40,10 +45,11 @@ jobs:
           MODEL: ${{ inputs.model }}
           LIMIT: ${{ inputs.limit }}
           REPEATS: ${{ inputs.repeats }}
+          REQUEST_INTERVAL: ${{ inputs.request_interval }}
           SEED: ${{ inputs.seed }}
         run: |
           export LLM_BASE_URL="${LLM_BASE_URL:-https://api.openai.com/v1}"
-          python -m dqagent.evaluate --model "$MODEL" --limit "$LIMIT" --repeats "$REPEATS" --seed "$SEED" --output results/live-evaluation.json
+          python -m dqagent.evaluate --model "$MODEL" --limit "$LIMIT" --repeats "$REPEATS" --seed "$SEED" --request-interval "$REQUEST_INTERVAL" --output results/live-evaluation.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

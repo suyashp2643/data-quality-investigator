@@ -106,3 +106,15 @@ The baseline still uses the previous JSON Object Mode. The agent configuration n
 its stricter output constraint; the comparison is between complete configurations, not an
 isolated test of orchestration. Scoring and fault labels are unchanged. Reports record agent
 protocol version 3 and both output formats. No new model success rate is claimed yet.
+
+### Request pacing
+The Actions form defaults to 30 seconds between model request starts. A shared
+timestamp spans all sequential workers, including both model methods. The CLI
+uses --request-interval (0–60 seconds; local default 0). Pacing reduces request
+bursts but cannot guarantee compliance with account token or daily quotas.
+There are no automatic retries; provider failures remain failures.
+Attempt durations include pacing; per-call durations exclude it, and each call
+records pacing_wait_seconds. Worker timeouts allow additional pacing time.
+The next development check uses seed 2605, six cases, one repeat. This extends
+the successful healthy-case check to single and mixed faults; it is not a
+production reliability estimate or an unseen fault-family benchmark.

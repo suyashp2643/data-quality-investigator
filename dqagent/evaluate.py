@@ -192,6 +192,7 @@ def main():
     parser.add_argument("--seed", type=int, default=2604)
     parser.add_argument("--limit", type=int, default=24)
     parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--request-interval", type=float, default=0, help="Seconds between model request starts (0 to 60)")
     parser.add_argument("--worker", type=Path)
     args = parser.parse_args()
     if args.worker:
@@ -206,7 +207,7 @@ def main():
     run_matrix("dqagent.evaluate", make_cases(args.seed, args.limit), ["rules", "single_shot", "agent"],
                args.model, args.output, args.repeats, metadata={"generator_seed": args.seed,
                    "agent_protocol_version": 3, "required_tools": list(REQUIRED_TOOLS), "max_agent_model_calls": 6, "response_format": {"type": "json_object"},
-                   "agent_response_format": ACTION_FORMAT})
+                   "agent_response_format": ACTION_FORMAT}, request_interval=args.request_interval)
 
 
 if __name__ == "__main__":

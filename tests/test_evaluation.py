@@ -291,3 +291,35 @@ def test_strict_action_format_and_single_turn_boundary(concatenate, tmp_path):
         server.shutdown()
         thread.join()
         server.server_close()
+
+
+def test_pacing_spans_client_instances(tmp_path, monkeypatch):
+    import time
+    arrivals = []
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            arrivals.append(time.monotonic())
+            body = json.dumps({"choices": [{"message": {"content": "{}"}}]}).encode()
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(body)
+        def log_message(self, *_):
+            pass
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    monkeypatch.setenv("LLM_REQUEST_INTERVAL_SECONDS", "0.1")
+    monkeypatch.setenv("LLM_PACING_FILE", str(tmp_path / "shared.txt"))
+    try:
+        first = Chat("local", endpoint=f"http://127.0.0.1:{server.server_port}", key="local")
+        second = Chat("local", endpoint=first.endpoint, key="local")
+        first.ask([])
+        second.ask([])
+        assert arrivals[1] - arrivals[0] >= 0.08
+        assert first.calls[0]["pacing_wait_seconds"] == 0
+        assert second.calls[0]["pacing_wait_seconds"] > 0
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
