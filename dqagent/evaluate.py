@@ -49,6 +49,19 @@ Cite an observed tool for every finding. After all four required checks, return 
 findings, or [] if healthy. Early final diagnoses are rejected and consume a call. Maximum six calls."""
 
 
+# Both model methods receive the same contract clarification, without case labels.
+VOLUME_RULE = """
+Evaluate each quality rule independently; findings may coexist.
+For low_volume, use ONLY the volume row whose day equals contract.expected_day.
+If that day is absent from the volume result, its count is zero.
+Counts on other days do not contribute to expected-day volume.
+If the expected-day count is below minimum_rows, include low_volume with evidence volume,
+even when stale_data is also present. Check all four rules before returning findings.
+"""
+SYSTEM += VOLUME_RULE
+AGENT_SYSTEM += VOLUME_RULE
+
+
 def adaptive_investigation(warehouse: Warehouse, chat: Chat, messages: list[dict]) -> dict:
     evidence, trace, rejected = {}, [], []
     remaining = list(QUERIES)
@@ -178,7 +191,7 @@ def solve(case: dict, method: str, chat: Chat | None) -> dict:
         outcome = score(findings, expected, evidence)
         outcome["success"] = outcome["success"] and completed
         return {"status": "ok" if completed else "incomplete", **outcome, "findings": findings,
-            "diagnosis_complete": completed, "agent_protocol_version": 3 if method == "agent" else None,
+            "diagnosis_complete": completed, "agent_protocol_version": 4 if method == "agent" else None,
             "missing_required_tools": [tool for tool in REQUIRED_TOOLS if tool not in evidence],
             "rejected_final_answers": rejected_final_answers,
             "trace": trace, "snapshot_hash": before, "unchanged": unchanged, "tool_calls": len(trace),
@@ -205,8 +218,8 @@ def main():
     if not 1 <= args.limit <= 100:
         raise ValueError("limit must be between 1 and 100")
     run_matrix("dqagent.evaluate", make_cases(args.seed, args.limit), ["rules", "single_shot", "agent"],
-               args.model, args.output, args.repeats, metadata={"generator_seed": args.seed,
-                   "agent_protocol_version": 3, "required_tools": list(REQUIRED_TOOLS), "max_agent_model_calls": 6, "response_format": {"type": "json_object"},
+               args.model, args.output, args.repeats, metadata={"generator_seed": args.seed, "diagnosis_prompt_version": 4,
+                   "agent_protocol_version": 4, "required_tools": list(REQUIRED_TOOLS), "max_agent_model_calls": 6, "response_format": {"type": "json_object"},
                    "agent_response_format": ACTION_FORMAT}, request_interval=args.request_interval)
 
 

@@ -195,7 +195,7 @@ def test_evidence_guard_recovery_budget_and_no_answer_fallback(behavior):
         result = solve(case, "agent", Chat("protocol-test", f"http://127.0.0.1:{server.server_port}/v1", "fake-key"))
         assert result["success"] == (behavior == "recover")
         assert len(result["calls"]) == len(requests) == 6
-        assert result["unchanged"] and result["agent_protocol_version"] == 3
+        assert result["unchanged"] and result["agent_protocol_version"] == 4
         assert result["rejected_final_answers"][0]["reason"] == "insufficient_evidence"
         assert json.loads(requests[1]["messages"][-1]["content"])["final_answer_accepted"] is False
         assert result["status"] == ("incomplete" if behavior == "keep_stopping" else "ok")
@@ -323,3 +323,23 @@ def test_pacing_spans_client_instances(tmp_path, monkeypatch):
         server.shutdown()
         server.server_close()
         thread.join()
+
+def test_absent_expected_day_with_historical_duplicates(tmp_path):
+    from dqagent.evaluate import make_cases, materialize, score
+    from dqagent.core import Warehouse, Contract
+    case = next(c for c in make_cases(2605, 6) if c["id"] == "case-005")
+    path = tmp_path / "warehouse.sqlite"
+    expected = materialize(case, path)
+    warehouse = Warehouse(str(path))
+    try:
+        evidence = {name: warehouse.query(name) for name in
+                    ("duplicates", "null_amounts", "freshness", "volume")}
+        assert all(row["day"] != Contract().expected_day for row in evidence["volume"])
+        assert sum(row["rows"] for row in evidence["volume"]) > 8
+        missed = [{"code": "duplicate_orders", "evidence": "duplicates"},
+                  {"code": "stale_data", "evidence": "freshness"}]
+        assert not score(missed, expected, evidence)["success"]
+        assert score(missed + [{"code": "low_volume", "evidence": "volume"}],
+                     expected, evidence)["success"]
+    finally:
+        warehouse.close()

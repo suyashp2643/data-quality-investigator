@@ -63,3 +63,32 @@ Query requests have null findings; final answers have a null tool. The baseline 
 JSON Object Mode, so output constraints differ and are recorded. Evidence requirements,
 scoring and call/token caps remain unchanged. Local protocol tests pass; authenticated live
 performance of this revision remains pending.
+
+
+## Protocol v3: six-case live result
+[Run 39810580340](https://github.com/suyashp2643/data-quality-investigator/actions/runs/39810580340)
+used seed 2605, one repeat, gpt-oss-120b and a 30-second request interval.
+The [complete report](after/2026-10-22-six-cases-v3.json) preserves all 18 attempts.
+
+| Method | Cases passed | Faults detected | Model calls | Tokens |
+| --- | ---: | ---: | ---: | ---: |
+| Rules | 6/6 | 9/9 | 0 | 0 |
+| Single-shot | 5/6 | 8/9 | 6 | 4,521 |
+| Agent | 5/6 | 8/9 | 30 | 31,772 |
+
+No transport errors or incomplete diagnoses occurred. Both model methods missed
+low_volume on case-005: historical rows existed, but no rows existed for the
+expected day. Both detected duplicates and stale_data. The agent demonstrated
+no accuracy advantage; its token usage was approximately seven times single-shot.
+All warehouses remained unchanged. Attempt durations include pacing.
+
+## Protocol v4: clarification awaiting live evaluation
+Both model prompts now explicitly define a missing expected day as zero volume,
+exclude historical-day counts, and require independent checks for coexisting
+faults. The scoring, tools, model-call budget and token budget are unchanged.
+The preserved v3 report predates this change; no v4 accuracy is claimed.
+
+Next run: main branch, model openai/gpt-oss-120b, limit 16, repeats 1,
+seed 2606, request interval 30. This covers all mutation flag combinations.
+Seed 2606 changes synthetic data, not fault families; it is not a real-world
+generalization benchmark. Seed 2605 has been examined and used for development.
