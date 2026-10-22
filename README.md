@@ -2,7 +2,7 @@
 
 ## Model comparison
 
-See [EVALUATION.md](EVALUATION.md) for a seeded mixed-fault comparison of rules, single-shot diagnosis, and adaptive tool use. No live model results have been published yet.
+See [EVALUATION.md](EVALUATION.md) for a seeded mixed-fault comparison of rules, single-shot diagnosis, and adaptive tool use. Initial live results are [published](evaluation/README.md): the agent passed 1/6 cases while both baselines passed 6/6. An evidence guard is implemented; revised live performance is pending.
 
 An evidence-first investigation prototype with constrained model tools, deterministic checks, data fingerprinting, and durable proposal reviews.
 

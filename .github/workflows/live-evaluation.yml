@@ -11,6 +11,11 @@ on:
         default: '1'
         required: true
         type: string
+      seed:
+        description: Data seed (2604 is development; use 2605 for fresh data)
+        default: '2605'
+        required: true
+        type: string
       repeats:
         description: Repetitions per case (1 to 5)
         default: '1'
@@ -35,9 +40,10 @@ jobs:
           MODEL: ${{ inputs.model }}
           LIMIT: ${{ inputs.limit }}
           REPEATS: ${{ inputs.repeats }}
+          SEED: ${{ inputs.seed }}
         run: |
           export LLM_BASE_URL="${LLM_BASE_URL:-https://api.openai.com/v1}"
-          python -m dqagent.evaluate --model "$MODEL" --limit "$LIMIT" --repeats "$REPEATS" --output results/live-evaluation.json
+          python -m dqagent.evaluate --model "$MODEL" --limit "$LIMIT" --repeats "$REPEATS" --seed "$SEED" --output results/live-evaluation.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -19,6 +19,51 @@ A business revenue decline alone is NOT a quality fault. Cite a tool you actuall
 When finished return ALL supported findings, or an empty findings list for healthy data. Never write data."""
 
 
+REQUIRED_TOOLS = tuple(EVIDENCE.values())
+AGENT_SYSTEM = SYSTEM + """
+You have not observed any warehouse data at the start. The tools object contains definitions,
+not query results. Request one tool by returning {"tool":"name"}; the host executes it and
+sends the result in the next message. You choose the tool order.
+Before any final diagnosis you must observe duplicates, null_amounts, freshness and volume.
+A schema or an empty observations object is not evidence of healthy data. A finding for one
+fault does not rule out the others. After all four checks, return the complete findings JSON.
+An early final answer is rejected and consumes a model call. Maximum six calls total.
+Never invent observations. Revenue is optional. Never write data."""
+
+
+def adaptive_investigation(warehouse: Warehouse, chat: Chat, messages: list[dict]) -> dict:
+    evidence, trace, rejected = {}, [], []
+    remaining = list(QUERIES)
+    for step in range(6):
+        response = chat.ask(messages)
+        missing = [tool for tool in REQUIRED_TOOLS if tool not in evidence]
+        if "findings" in response:
+            if not missing:
+                return {"findings": response["findings"], "evidence": evidence,
+                    "trace": trace, "rejected_final_answers": rejected, "complete": True}
+            rejected.append({"call": step + 1, "reason": "insufficient_evidence", "missing_tools": missing})
+            feedback = {"status": "incomplete", "final_answer_accepted": False,
+                "observed_tools": list(evidence), "missing_required_tools": missing,
+                "allowed_tools": remaining, "instruction": "Collect evidence. Return one tool JSON next, not findings."}
+        else:
+            tool = response["tool"]
+            if tool not in remaining:
+                raise ValueError("Invalid or repeated tool")
+            if step == 5:
+                break
+            evidence[tool] = warehouse.query(tool)
+            trace.append({"tool": tool, "sql": QUERIES[tool], "result": evidence[tool]})
+            remaining.remove(tool)
+            missing = [name for name in REQUIRED_TOOLS if name not in evidence]
+            feedback = {"tool": tool, "result": evidence[tool], "allowed_tools": remaining,
+                "missing_required_tools": missing,
+                "instruction": "Request a missing required tool next" if missing else "All required evidence collected. Return all findings now."}
+        messages.extend([{"role": "assistant", "content": json.dumps(response)},
+                         {"role": "user", "content": json.dumps(feedback)}])
+    return {"findings": [], "evidence": evidence, "trace": trace,
+        "rejected_final_answers": rejected, "complete": False}
+
+
 def make_cases(seed: int = 2604, count: int = 24) -> list[dict]:
     rng = random.Random(seed)
     cases = []
@@ -78,13 +123,15 @@ def solve(case: dict, method: str, chat: Chat | None) -> dict:
         contract = Contract(minimum_rows=8)
         evidence = {}
         trace = []
+        rejected_final_answers = []
+        completed = True
         if method == "rules":
             report = investigate(warehouse, BaselinePlanner(), "Investigate order quality", contract)
             evidence = {row["tool"]: row["result"] for row in report["trace"]}
             findings = report["findings"]
             trace = report["trace"]
         else:
-            messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps({
+            messages = [{"role": "system", "content": AGENT_SYSTEM if method == "agent" else SYSTEM}, {"role": "user", "content": json.dumps({
                 "question": "Investigate all order quality violations. Revenue may have changed.",
                 "contract": {"expected_day": contract.expected_day, "minimum_rows": contract.minimum_rows},
                 "tools": QUERIES})}]
@@ -95,26 +142,23 @@ def solve(case: dict, method: str, chat: Chat | None) -> dict:
                 messages.append({"role": "user", "content": json.dumps({"observations": evidence, "instruction": "Return findings now; all tools already executed."})})
                 findings = chat.ask(messages)["findings"]
             else:
-                # At most five read tools and one final diagnosis; repeated or invented tools fail closed.
-                for step in range(6):
-                    response = chat.ask(messages)
-                    if "findings" in response:
-                        findings = response["findings"]
-                        break
-                    tool = response["tool"]
-                    if tool not in remaining or step == 5:
-                        raise ValueError("Invalid, repeated, or over-budget tool")
-                    evidence[tool] = warehouse.query(tool)
-                    trace.append({"tool": tool, "sql": QUERIES[tool], "result": evidence[tool]})
-                    remaining.remove(tool)
-                    messages.extend([{"role": "assistant", "content": json.dumps(response)},
-                        {"role": "user", "content": json.dumps({"tool": tool, "result": evidence[tool], "remaining": remaining,
-                        "instruction": "Return findings now" if not remaining else "Continue investigation or return findings"})}])
+                messages.append({"role": "user", "content": json.dumps({"observations": {},
+                    "allowed_tools": list(QUERIES), "missing_required_tools": REQUIRED_TOOLS,
+                    "instruction": "No data has been queried. Start by returning one tool JSON."})})
+                result = adaptive_investigation(warehouse, chat, messages)
+                findings, evidence, trace = result["findings"], result["evidence"], result["trace"]
+                completed = result["complete"]
+                rejected_final_answers = result["rejected_final_answers"]
         unchanged = before == warehouse.snapshot()
         warehouse.close()
         if not unchanged:
             raise RuntimeError("Warehouse changed during read-only evaluation")
-        return {"status": "ok", **score(findings, expected, evidence), "findings": findings,
+        outcome = score(findings, expected, evidence)
+        outcome["success"] = outcome["success"] and completed
+        return {"status": "ok" if completed else "incomplete", **outcome, "findings": findings,
+            "diagnosis_complete": completed, "agent_protocol_version": 2 if method == "agent" else None,
+            "missing_required_tools": [tool for tool in REQUIRED_TOOLS if tool not in evidence],
+            "rejected_final_answers": rejected_final_answers,
             "trace": trace, "snapshot_hash": before, "unchanged": unchanged, "tool_calls": len(trace),
             "calls": chat.calls if chat else []}
 
@@ -136,7 +180,8 @@ def main():
     if not 1 <= args.limit <= 100:
         raise ValueError("limit must be between 1 and 100")
     run_matrix("dqagent.evaluate", make_cases(args.seed, args.limit), ["rules", "single_shot", "agent"],
-               args.model, args.output, args.repeats)
+               args.model, args.output, args.repeats, metadata={"generator_seed": args.seed,
+                   "agent_protocol_version": 2, "required_tools": list(REQUIRED_TOOLS), "max_agent_model_calls": 6})
 
 
 if __name__ == "__main__":

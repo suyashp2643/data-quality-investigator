@@ -46,6 +46,9 @@ def summarize(rows: list[dict]) -> dict:
         summary[method] = {"attempts": len(items), "successes": sum(r.get("success", False) for r in items),
             "success_rate": sum(r.get("success", False) for r in items) / len(items),
             "errors": sum(r.get("status") == "error" for r in items),
+            "incomplete_attempts": sum(r.get("status") == "incomplete" for r in items),
+            "total_tool_calls": sum(r.get("tool_calls", 0) for r in items),
+            "rejected_final_answers": sum(len(r.get("rejected_final_answers", [])) for r in items),
             "total_calls": sum(len(r.get("calls", [])) for r in items),
             "total_seconds": round(sum(r["seconds"] for r in items), 3),
             "observed_total_tokens": sum((call.get("usage") or {}).get("total_tokens", 0) for r in items for call in r.get("calls", [])),
@@ -94,7 +97,7 @@ def worker_error(stderr: str, returncode: int) -> dict:
     return result
 
 
-def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, output: Path, repeats: int = 1) -> dict:
+def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, output: Path, repeats: int = 1, metadata: dict | None = None) -> dict:
     if not 1 <= repeats <= 5 or not model:
         raise ValueError("Specify a model and between 1 and 5 repeats")
     if not os.environ.get("LLM_API_KEY"):
@@ -104,7 +107,7 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
     if output.exists():
         raise FileExistsError("Choose a new output path to preserve previous runs")
     report = {"mode": "live_model_evaluation", "started_at": datetime.now(timezone.utc).isoformat(),
-        "model": model, "commit": os.environ.get("GITHUB_SHA"),
+        "model": model, "configuration": metadata or {}, "commit": os.environ.get("GITHUB_SHA"),
         "code_hashes": {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(module.split(".")[0]).glob("*.py")},
         "dataset_hash": digest(cases), "cases": cases, "repeats": repeats,
         "max_output_tokens_per_call": 1600, "results": [],

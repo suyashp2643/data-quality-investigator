@@ -1,0 +1,1531 @@
+{
+  "mode": "live_model_evaluation",
+  "started_at": "2026-10-22T13:23:54.941804+00:00",
+  "model": "openai/gpt-oss-120b",
+  "commit": "86d96096675eb3662025d910456dd39dc9b54f3b",
+  "code_hashes": {
+    "dqagent/__main__.py": "fce19b9c2b4cf7d3889ae654d3253ba367297ae3e4556884ede6eb2c19e1ffd7",
+    "dqagent/eval_runtime.py": "84c19f50d8d87adea9b76b23d0778fba2f39938ee3ef4d32dc580182d55a987f",
+    "dqagent/evaluate.py": "79ee4f646d36bb6331d6e2b267cbf54b5306e8b03aaec1da30e5f25a520dc63e",
+    "dqagent/__init__.py": "91e736e2bf47e9cdbe952ba7c79fe1170c61beb01741aabd4f950475d4a0b3ac",
+    "dqagent/core.py": "cf3d8016484daf6541f3c50d6648c58c68624a5afc16f158319173e4cbaa0c8d"
+  },
+  "dataset_hash": "01799cf49884f72d0cda09a76ab9e824c90b907d7dc2282f4366f7163ddf7162",
+  "cases": [
+    {
+      "id": "case-002",
+      "seed": 548275662,
+      "mask": 2,
+      "business_decline": true
+    },
+    {
+      "id": "case-000",
+      "seed": 27659843,
+      "mask": 0,
+      "business_decline": false
+    },
+    {
+      "id": "case-004",
+      "seed": 453652724,
+      "mask": 4,
+      "business_decline": true
+    },
+    {
+      "id": "case-003",
+      "seed": 148513108,
+      "mask": 3,
+      "business_decline": false
+    },
+    {
+      "id": "case-001",
+      "seed": 331596638,
+      "mask": 1,
+      "business_decline": false
+    },
+    {
+      "id": "case-005",
+      "seed": 1511650510,
+      "mask": 5,
+      "business_decline": true
+    }
+  ],
+  "repeats": 1,
+  "max_output_tokens_per_call": 1600,
+  "results": [
+    {
+      "case": "case-002",
+      "repeat": 0,
+      "method": "rules",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "missing_amounts"
+      ],
+      "predicted": [
+        "missing_amounts"
+      ],
+      "citations_supported": true,
+      "true_positives": 1,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "missing_amounts",
+          "evidence": "null_amounts",
+          "proposal": "Reconcile missing amounts with the source system."
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "volume",
+          "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 12
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 25
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": []
+        },
+        {
+          "step": 3,
+          "tool": "null_amounts",
+          "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+          "result": [
+            {
+              "count": 1
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "tool": "freshness",
+          "sql": "SELECT MAX(day) AS latest_day FROM orders",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "tool": "revenue",
+          "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1182.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 541.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "6bb31e03ba6e2479673432cb7ab456c1476f7708c32c008a3de2c9d40a797157",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [],
+      "seconds": 0.088
+    },
+    {
+      "case": "case-002",
+      "repeat": 0,
+      "method": "single_shot",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "missing_amounts"
+      ],
+      "predicted": [
+        "missing_amounts"
+      ],
+      "citations_supported": true,
+      "true_positives": 1,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "missing_amounts",
+          "evidence": "null_amounts"
+        }
+      ],
+      "trace": [
+        {
+          "tool": "volume",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 12
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 25
+            }
+          ]
+        },
+        {
+          "tool": "duplicates",
+          "result": []
+        },
+        {
+          "tool": "null_amounts",
+          "result": [
+            {
+              "count": 1
+            }
+          ]
+        },
+        {
+          "tool": "freshness",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "tool": "revenue",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1182.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 541.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "6bb31e03ba6e2479673432cb7ab456c1476f7708c32c008a3de2c9d40a797157",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [
+        {
+          "request_hash": "87f4e9882f6d6ed884cdeb2f5d364fa5f3ee310d8865d46b247a8d22d1db0842",
+          "response": "{\"findings\":[{\"code\":\"missing_amounts\",\"evidence\":\"null_amounts\"}]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.14746048,
+            "prompt_tokens": 476,
+            "prompt_time": 0.024312588,
+            "completion_tokens": 244,
+            "completion_time": 0.510829026,
+            "total_tokens": 720,
+            "total_time": 0.535141614,
+            "completion_tokens_details": {
+              "reasoning_tokens": 216
+            }
+          },
+          "seconds": 0.771
+        }
+      ],
+      "seconds": 0.861
+    },
+    {
+      "case": "case-002",
+      "repeat": 0,
+      "method": "agent",
+      "status": "ok",
+      "success": false,
+      "expected": [
+        "missing_amounts"
+      ],
+      "predicted": [],
+      "citations_supported": true,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 1,
+      "findings": [],
+      "trace": [],
+      "snapshot_hash": "6bb31e03ba6e2479673432cb7ab456c1476f7708c32c008a3de2c9d40a797157",
+      "unchanged": true,
+      "tool_calls": 0,
+      "calls": [
+        {
+          "request_hash": "6851c7920d67b5b86f48f6b9e0f972e6cdd83b59b9ef1b0a02f12b8286c2c0ce",
+          "response": "{\"findings\":[]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.085960793,
+            "prompt_tokens": 339,
+            "prompt_time": 0.016363047,
+            "completion_tokens": 259,
+            "completion_time": 0.546475543,
+            "total_tokens": 598,
+            "total_time": 0.56283859,
+            "completion_tokens_details": {
+              "reasoning_tokens": 245
+            }
+          },
+          "seconds": 0.758
+        }
+      ],
+      "seconds": 0.848
+    },
+    {
+      "case": "case-000",
+      "repeat": 0,
+      "method": "agent",
+      "status": "ok",
+      "success": false,
+      "expected": [],
+      "predicted": [],
+      "citations_supported": false,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [],
+      "trace": [],
+      "snapshot_hash": "fc7ce8ed41b8973eef650a6d34b69f2e412b269380b3351d67f9dbee6ccea315",
+      "unchanged": true,
+      "tool_calls": 0,
+      "calls": [
+        {
+          "request_hash": "6851c7920d67b5b86f48f6b9e0f972e6cdd83b59b9ef1b0a02f12b8286c2c0ce",
+          "response": "{\"findings\":[]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.085515297,
+            "prompt_tokens": 339,
+            "prompt_time": 0.016549443,
+            "completion_tokens": 291,
+            "completion_time": 0.60324405,
+            "total_tokens": 630,
+            "total_time": 0.619793493,
+            "completion_tokens_details": {
+              "reasoning_tokens": 277
+            }
+          },
+          "seconds": 0.774
+        }
+      ],
+      "seconds": 0.863
+    },
+    {
+      "case": "case-000",
+      "repeat": 0,
+      "method": "single_shot",
+      "status": "ok",
+      "success": true,
+      "expected": [],
+      "predicted": [],
+      "citations_supported": true,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [],
+      "trace": [
+        {
+          "tool": "volume",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 19
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 20
+            }
+          ]
+        },
+        {
+          "tool": "duplicates",
+          "result": []
+        },
+        {
+          "tool": "null_amounts",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "tool": "freshness",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "tool": "revenue",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1954.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 2191.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "fc7ce8ed41b8973eef650a6d34b69f2e412b269380b3351d67f9dbee6ccea315",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [
+        {
+          "request_hash": "da99cae1e2dd81e542e929952a68123dab16c685ac28c78ca1d24d34a512ae13",
+          "response": "{\"findings\":[]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.243771774,
+            "prompt_tokens": 477,
+            "prompt_time": 0.024680771,
+            "completion_tokens": 175,
+            "completion_time": 0.367528536,
+            "total_tokens": 652,
+            "total_time": 0.392209307,
+            "completion_tokens_details": {
+              "reasoning_tokens": 161
+            }
+          },
+          "seconds": 0.704
+        }
+      ],
+      "seconds": 0.796
+    },
+    {
+      "case": "case-000",
+      "repeat": 0,
+      "method": "rules",
+      "status": "ok",
+      "success": true,
+      "expected": [],
+      "predicted": [],
+      "citations_supported": true,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "volume",
+          "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 19
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 20
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": []
+        },
+        {
+          "step": 3,
+          "tool": "null_amounts",
+          "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "tool": "freshness",
+          "sql": "SELECT MAX(day) AS latest_day FROM orders",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "tool": "revenue",
+          "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1954.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 2191.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "fc7ce8ed41b8973eef650a6d34b69f2e412b269380b3351d67f9dbee6ccea315",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [],
+      "seconds": 0.088
+    },
+    {
+      "case": "case-004",
+      "repeat": 0,
+      "method": "rules",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "low_volume",
+        "stale_data"
+      ],
+      "predicted": [
+        "low_volume",
+        "stale_data"
+      ],
+      "citations_supported": true,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "stale_data",
+          "evidence": "freshness",
+          "proposal": "Review ingestion logs and replay the missing batch after approval."
+        },
+        {
+          "code": "low_volume",
+          "evidence": "volume",
+          "proposal": "Reconcile expected order counts before assuming a business decline."
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "volume",
+          "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 14
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": []
+        },
+        {
+          "step": 3,
+          "tool": "null_amounts",
+          "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "tool": "freshness",
+          "sql": "SELECT MAX(day) AS latest_day FROM orders",
+          "result": [
+            {
+              "latest_day": "2026-10-20"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "tool": "revenue",
+          "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1589.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "aa36f0f2f62d986a2fc5a4bb1117267953a11af3babdf4950e20e02b2be67a70",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [],
+      "seconds": 0.087
+    },
+    {
+      "case": "case-004",
+      "repeat": 0,
+      "method": "single_shot",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "low_volume",
+        "stale_data"
+      ],
+      "predicted": [
+        "low_volume",
+        "stale_data"
+      ],
+      "citations_supported": true,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "low_volume",
+          "evidence": "volume"
+        },
+        {
+          "code": "stale_data",
+          "evidence": "freshness"
+        }
+      ],
+      "trace": [
+        {
+          "tool": "volume",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 14
+            }
+          ]
+        },
+        {
+          "tool": "duplicates",
+          "result": []
+        },
+        {
+          "tool": "null_amounts",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "tool": "freshness",
+          "result": [
+            {
+              "latest_day": "2026-10-20"
+            }
+          ]
+        },
+        {
+          "tool": "revenue",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1589.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "aa36f0f2f62d986a2fc5a4bb1117267953a11af3babdf4950e20e02b2be67a70",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [
+        {
+          "request_hash": "c25873eac7165adec1904f970ff0ea7204a5547905274627aac456b83af20ec6",
+          "response": "{\"findings\":[{\"code\":\"low_volume\",\"evidence\":\"volume\"},{\"code\":\"stale_data\",\"evidence\":\"freshness\"}]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.248679553,
+            "prompt_tokens": 439,
+            "prompt_time": 0.02335577,
+            "completion_tokens": 269,
+            "completion_time": 0.575102772,
+            "total_tokens": 708,
+            "total_time": 0.598458542,
+            "completion_tokens_details": {
+              "reasoning_tokens": 232
+            }
+          },
+          "seconds": 0.953
+        }
+      ],
+      "seconds": 1.043
+    },
+    {
+      "case": "case-004",
+      "repeat": 0,
+      "method": "agent",
+      "status": "ok",
+      "success": false,
+      "expected": [
+        "low_volume",
+        "stale_data"
+      ],
+      "predicted": [],
+      "citations_supported": true,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 2,
+      "findings": [],
+      "trace": [],
+      "snapshot_hash": "aa36f0f2f62d986a2fc5a4bb1117267953a11af3babdf4950e20e02b2be67a70",
+      "unchanged": true,
+      "tool_calls": 0,
+      "calls": [
+        {
+          "request_hash": "6851c7920d67b5b86f48f6b9e0f972e6cdd83b59b9ef1b0a02f12b8286c2c0ce",
+          "response": "{\"findings\":[]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.085055353,
+            "prompt_tokens": 339,
+            "prompt_time": 0.022420799,
+            "completion_tokens": 261,
+            "completion_time": 0.553610813,
+            "total_tokens": 600,
+            "total_time": 0.576031612,
+            "completion_tokens_details": {
+              "reasoning_tokens": 247
+            }
+          },
+          "seconds": 0.737
+        }
+      ],
+      "seconds": 0.827
+    },
+    {
+      "case": "case-003",
+      "repeat": 0,
+      "method": "agent",
+      "status": "ok",
+      "success": false,
+      "expected": [
+        "duplicate_orders",
+        "missing_amounts"
+      ],
+      "predicted": [],
+      "citations_supported": true,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 2,
+      "findings": [],
+      "trace": [],
+      "snapshot_hash": "8192d679dc4a3bd3f02050192f717de0fcb87b96242baad1f821fe3ecef9af61",
+      "unchanged": true,
+      "tool_calls": 0,
+      "calls": [
+        {
+          "request_hash": "6851c7920d67b5b86f48f6b9e0f972e6cdd83b59b9ef1b0a02f12b8286c2c0ce",
+          "response": "{\"findings\":[]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.243560509,
+            "prompt_tokens": 339,
+            "prompt_time": 0.015812325,
+            "completion_tokens": 418,
+            "completion_time": 0.879279431,
+            "total_tokens": 757,
+            "total_time": 0.895091756,
+            "completion_tokens_details": {
+              "reasoning_tokens": 404
+            }
+          },
+          "seconds": 1.208
+        }
+      ],
+      "seconds": 1.299
+    },
+    {
+      "case": "case-003",
+      "repeat": 0,
+      "method": "single_shot",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders",
+        "missing_amounts"
+      ],
+      "predicted": [
+        "duplicate_orders",
+        "missing_amounts"
+      ],
+      "citations_supported": true,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates"
+        },
+        {
+          "code": "missing_amounts",
+          "evidence": "null_amounts"
+        }
+      ],
+      "trace": [
+        {
+          "tool": "volume",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 24
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 13
+            }
+          ]
+        },
+        {
+          "tool": "duplicates",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 4
+            }
+          ]
+        },
+        {
+          "tool": "null_amounts",
+          "result": [
+            {
+              "count": 1
+            }
+          ]
+        },
+        {
+          "tool": "freshness",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "tool": "revenue",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 2641.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 1563.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "8192d679dc4a3bd3f02050192f717de0fcb87b96242baad1f821fe3ecef9af61",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [
+        {
+          "request_hash": "dd56d5f0aa70d5dac73666c3c0a1232a3a9f78c1ff71849909a8006f5922c5f3",
+          "response": "{\n  \"findings\": [\n    {\n      \"code\": \"duplicate_orders\",\n      \"evidence\": \"duplicates\"\n    },\n    {\n      \"code\": \"missing_amounts\",\n      \"evidence\": \"null_amounts\"\n    }\n  ]\n}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.230074867,
+            "prompt_tokens": 491,
+            "prompt_time": 0.077445399,
+            "completion_tokens": 266,
+            "completion_time": 0.663237654,
+            "total_tokens": 757,
+            "total_time": 0.740683053,
+            "prompt_tokens_details": {
+              "cached_tokens": 256
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 204
+            }
+          },
+          "seconds": 1.048
+        }
+      ],
+      "seconds": 1.139
+    },
+    {
+      "case": "case-003",
+      "repeat": 0,
+      "method": "rules",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders",
+        "missing_amounts"
+      ],
+      "predicted": [
+        "duplicate_orders",
+        "missing_amounts"
+      ],
+      "citations_supported": true,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates",
+          "proposal": "Review duplicate order IDs against the source; do not delete automatically."
+        },
+        {
+          "code": "missing_amounts",
+          "evidence": "null_amounts",
+          "proposal": "Reconcile missing amounts with the source system."
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "volume",
+          "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 24
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 13
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 4
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "tool": "null_amounts",
+          "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+          "result": [
+            {
+              "count": 1
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "tool": "freshness",
+          "sql": "SELECT MAX(day) AS latest_day FROM orders",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "tool": "revenue",
+          "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 2641.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 1563.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "8192d679dc4a3bd3f02050192f717de0fcb87b96242baad1f821fe3ecef9af61",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [],
+      "seconds": 0.087
+    },
+    {
+      "case": "case-001",
+      "repeat": 0,
+      "method": "rules",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders"
+      ],
+      "predicted": [
+        "duplicate_orders"
+      ],
+      "citations_supported": true,
+      "true_positives": 1,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates",
+          "proposal": "Review duplicate order IDs against the source; do not delete automatically."
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "volume",
+          "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 31
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 14
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 2
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "tool": "null_amounts",
+          "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "tool": "freshness",
+          "sql": "SELECT MAX(day) AS latest_day FROM orders",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "tool": "revenue",
+          "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 3470.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 1390.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "28de2d74187f9f4cf3de6312a84d082f6f1a1483e4a526e9b05e005f817d3a5f",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [],
+      "seconds": 0.088
+    },
+    {
+      "case": "case-001",
+      "repeat": 0,
+      "method": "single_shot",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders"
+      ],
+      "predicted": [
+        "duplicate_orders"
+      ],
+      "citations_supported": true,
+      "true_positives": 1,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates"
+        }
+      ],
+      "trace": [
+        {
+          "tool": "volume",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 31
+            },
+            {
+              "day": "2026-10-21",
+              "rows": 14
+            }
+          ]
+        },
+        {
+          "tool": "duplicates",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 2
+            }
+          ]
+        },
+        {
+          "tool": "null_amounts",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "tool": "freshness",
+          "result": [
+            {
+              "latest_day": "2026-10-21"
+            }
+          ]
+        },
+        {
+          "tool": "revenue",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 3470.0
+            },
+            {
+              "day": "2026-10-21",
+              "revenue": 1390.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "28de2d74187f9f4cf3de6312a84d082f6f1a1483e4a526e9b05e005f817d3a5f",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [
+        {
+          "request_hash": "4aa6d3b768fc2419119e1096ab6d33f7a6d9e42e13720329f251c7a736cbf828",
+          "response": "{\"findings\":[{\"code\":\"duplicate_orders\",\"evidence\":\"duplicates\"}]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.148347909,
+            "prompt_tokens": 491,
+            "prompt_time": 0.025781979,
+            "completion_tokens": 249,
+            "completion_time": 0.518900744,
+            "total_tokens": 740,
+            "total_time": 0.544682723,
+            "completion_tokens_details": {
+              "reasoning_tokens": 224
+            }
+          },
+          "seconds": 0.785
+        }
+      ],
+      "seconds": 0.874
+    },
+    {
+      "case": "case-001",
+      "repeat": 0,
+      "method": "agent",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders"
+      ],
+      "predicted": [
+        "duplicate_orders"
+      ],
+      "citations_supported": true,
+      "true_positives": 1,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates"
+        }
+      ],
+      "trace": [
+        {
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 2
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "28de2d74187f9f4cf3de6312a84d082f6f1a1483e4a526e9b05e005f817d3a5f",
+      "unchanged": true,
+      "tool_calls": 1,
+      "calls": [
+        {
+          "request_hash": "6851c7920d67b5b86f48f6b9e0f972e6cdd83b59b9ef1b0a02f12b8286c2c0ce",
+          "response": "{\"tool\":\"duplicates\"}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.139501078,
+            "prompt_tokens": 339,
+            "prompt_time": 0.004982431,
+            "completion_tokens": 763,
+            "completion_time": 1.824548627,
+            "total_tokens": 1102,
+            "total_time": 1.8295310580000002,
+            "prompt_tokens_details": {
+              "cached_tokens": 256
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 749
+            }
+          },
+          "seconds": 2.082
+        },
+        {
+          "request_hash": "65d2f8afa4cef124d7d6a18d004d2fe9f9fcc5722ad38bea336df873e6a2113b",
+          "response": "{\"findings\":[{\"code\":\"duplicate_orders\",\"evidence\":\"duplicates\"}]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.243606799,
+            "prompt_tokens": 408,
+            "prompt_time": 1.063735278,
+            "completion_tokens": 196,
+            "completion_time": 0.464102994,
+            "total_tokens": 604,
+            "total_time": 1.5278382719999999,
+            "prompt_tokens_details": {
+              "cached_tokens": 256
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 127
+            }
+          },
+          "seconds": 1.825
+        }
+      ],
+      "seconds": 3.997
+    },
+    {
+      "case": "case-005",
+      "repeat": 0,
+      "method": "agent",
+      "status": "ok",
+      "success": false,
+      "expected": [
+        "duplicate_orders",
+        "low_volume",
+        "stale_data"
+      ],
+      "predicted": [],
+      "citations_supported": true,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 3,
+      "findings": [],
+      "trace": [],
+      "snapshot_hash": "024acc076bb3432b0f209c645ab239d5aecce10562c960640171d6727c395a0f",
+      "unchanged": true,
+      "tool_calls": 0,
+      "calls": [
+        {
+          "request_hash": "6851c7920d67b5b86f48f6b9e0f972e6cdd83b59b9ef1b0a02f12b8286c2c0ce",
+          "response": "{\"findings\":[]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.223262764,
+            "prompt_tokens": 339,
+            "prompt_time": 0.015082111,
+            "completion_tokens": 511,
+            "completion_time": 1.078347624,
+            "total_tokens": 850,
+            "total_time": 1.093429735,
+            "completion_tokens_details": {
+              "reasoning_tokens": 497
+            }
+          },
+          "seconds": 1.395
+        }
+      ],
+      "seconds": 1.487
+    },
+    {
+      "case": "case-005",
+      "repeat": 0,
+      "method": "single_shot",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders",
+        "low_volume",
+        "stale_data"
+      ],
+      "predicted": [
+        "duplicate_orders",
+        "low_volume",
+        "stale_data"
+      ],
+      "citations_supported": true,
+      "true_positives": 3,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates"
+        },
+        {
+          "code": "stale_data",
+          "evidence": "freshness"
+        },
+        {
+          "code": "low_volume",
+          "evidence": "volume"
+        }
+      ],
+      "trace": [
+        {
+          "tool": "volume",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 18
+            }
+          ]
+        },
+        {
+          "tool": "duplicates",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 3
+            }
+          ]
+        },
+        {
+          "tool": "null_amounts",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "tool": "freshness",
+          "result": [
+            {
+              "latest_day": "2026-10-20"
+            }
+          ]
+        },
+        {
+          "tool": "revenue",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1909.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "024acc076bb3432b0f209c645ab239d5aecce10562c960640171d6727c395a0f",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [
+        {
+          "request_hash": "151f9324cbd1528db08649e070aa12a4050fb65a3818754832393f5378ddefc1",
+          "response": "{\"findings\":[{\"code\":\"duplicate_orders\",\"evidence\":\"duplicates\"},{\"code\":\"stale_data\",\"evidence\":\"freshness\"},{\"code\":\"low_volume\",\"evidence\":\"volume\"}]}",
+          "returned_model": "openai/gpt-oss-120b",
+          "usage": {
+            "queue_time": 0.172281345,
+            "prompt_tokens": 453,
+            "prompt_time": 0.020493392,
+            "completion_tokens": 310,
+            "completion_time": 0.664126484,
+            "total_tokens": 763,
+            "total_time": 0.684619876,
+            "completion_tokens_details": {
+              "reasoning_tokens": 263
+            }
+          },
+          "seconds": 0.962
+        }
+      ],
+      "seconds": 1.055
+    },
+    {
+      "case": "case-005",
+      "repeat": 0,
+      "method": "rules",
+      "status": "ok",
+      "success": true,
+      "expected": [
+        "duplicate_orders",
+        "low_volume",
+        "stale_data"
+      ],
+      "predicted": [
+        "duplicate_orders",
+        "low_volume",
+        "stale_data"
+      ],
+      "citations_supported": true,
+      "true_positives": 3,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "findings": [
+        {
+          "code": "duplicate_orders",
+          "evidence": "duplicates",
+          "proposal": "Review duplicate order IDs against the source; do not delete automatically."
+        },
+        {
+          "code": "stale_data",
+          "evidence": "freshness",
+          "proposal": "Review ingestion logs and replay the missing batch after approval."
+        },
+        {
+          "code": "low_volume",
+          "evidence": "volume",
+          "proposal": "Reconcile expected order counts before assuming a business decline."
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "volume",
+          "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "rows": 18
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "tool": "duplicates",
+          "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+          "result": [
+            {
+              "order_id": "old-0",
+              "copies": 3
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "tool": "null_amounts",
+          "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+          "result": [
+            {
+              "count": 0
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "tool": "freshness",
+          "sql": "SELECT MAX(day) AS latest_day FROM orders",
+          "result": [
+            {
+              "latest_day": "2026-10-20"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "tool": "revenue",
+          "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+          "result": [
+            {
+              "day": "2026-10-20",
+              "revenue": 1909.0
+            }
+          ]
+        }
+      ],
+      "snapshot_hash": "024acc076bb3432b0f209c645ab239d5aecce10562c960640171d6727c395a0f",
+      "unchanged": true,
+      "tool_calls": 5,
+      "calls": [],
+      "seconds": 0.086
+    }
+  ],
+  "limitations": "Small public benchmark; prompt-hidden tests are not contamination-proof. Failures remain in denominator. No production reliability claim. Token usage is provider-reported, not dollar cost.",
+  "summary": {
+    "methods": {
+      "agent": {
+        "attempts": 6,
+        "successes": 1,
+        "success_rate": 0.16666666666666666,
+        "errors": 0,
+        "total_calls": 7,
+        "total_seconds": 9.321,
+        "observed_total_tokens": 5141,
+        "calls_without_token_usage": 0,
+        "true_positives": 1,
+        "false_positives": 0,
+        "false_negatives": 8
+      },
+      "rules": {
+        "attempts": 6,
+        "successes": 6,
+        "success_rate": 1.0,
+        "errors": 0,
+        "total_calls": 0,
+        "total_seconds": 0.524,
+        "observed_total_tokens": 0,
+        "calls_without_token_usage": 0,
+        "true_positives": 9,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "single_shot": {
+        "attempts": 6,
+        "successes": 6,
+        "success_rate": 1.0,
+        "errors": 0,
+        "total_calls": 6,
+        "total_seconds": 5.768,
+        "observed_total_tokens": 4340,
+        "calls_without_token_usage": 0,
+        "true_positives": 9,
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "paired": [
+      {
+        "baseline": "rules",
+        "pairs": 6,
+        "agent_only_success": 0,
+        "baseline_only_success": 5
+      },
+      {
+        "baseline": "single_shot",
+        "pairs": 6,
+        "agent_only_success": 0,
+        "baseline_only_success": 5
+      }
+    ]
+  },
+  "complete": true
+}

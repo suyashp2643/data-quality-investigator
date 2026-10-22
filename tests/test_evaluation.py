@@ -161,3 +161,52 @@ def test_ansi_and_unexpected_response_diagnostics():
     assert result["category"] == "unexpected_response_type"
     assert "secret-provider" not in str(result)
     assert worker_error("Usage: python -m portfolio.evaluate [OPTIONS]", 2)["category"] == "worker_cli_arguments_rejected"
+
+
+@pytest.mark.parametrize(("behavior",), [("recover",), ("keep_stopping",), ("wrong_diagnosis",)])
+def test_evidence_guard_recovery_budget_and_no_answer_fallback(behavior):
+    from dqagent.evaluate import make_cases, solve
+    case = next(c for c in make_cases(43, 16) if c["mask"] == 3)
+    queries = [{"tool": name} for name in ["duplicates", "null_amounts", "freshness", "volume"]]
+    correct = {"findings": [{"code": "duplicate_orders", "evidence": "duplicates"},
+                            {"code": "missing_amounts", "evidence": "null_amounts"}]}
+    replies = ([{"findings": []}] * 6 if behavior == "keep_stopping" else
+               [{"findings": []}] + queries + [correct if behavior == "recover" else {"findings": []}])
+    requests = []
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            requests.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(json.dumps({"choices": [{"message": {"content": json.dumps(replies[len(requests)-1])}}]}).encode())
+        def log_message(self, *_):
+            pass
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = solve(case, "agent", Chat("protocol-test", f"http://127.0.0.1:{server.server_port}/v1", "fake-key"))
+        assert result["success"] == (behavior == "recover")
+        assert len(result["calls"]) == len(requests) == 6
+        assert result["unchanged"] and result["agent_protocol_version"] == 2
+        assert result["rejected_final_answers"][0]["reason"] == "insufficient_evidence"
+        assert json.loads(requests[1]["messages"][-1]["content"])["final_answer_accepted"] is False
+        assert result["status"] == ("incomplete" if behavior == "keep_stopping" else "ok")
+        assert result["tool_calls"] == (0 if behavior == "keep_stopping" else 4)
+        if behavior != "recover":
+            assert result["findings"] == [] and result["false_negatives"] == 2
+        for request in requests:
+            assert all('"mask"' not in message["content"] and '"expected"' not in message["content"] for message in request["messages"])
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+def test_published_failure_report_and_fresh_seed_are_reproducible():
+    from dqagent.evaluate import make_cases
+    report = json.loads(Path("evaluation/before/2026-10-22-six-cases.json").read_text())
+    assert report["cases"] == make_cases(2604, 6)
+    assert report["summary"]["methods"]["agent"]["successes"] == 1
+    assert make_cases(2605, 6) != report["cases"]
+    assert {case["mask"] for case in make_cases(2605, 16)} == set(range(16))
