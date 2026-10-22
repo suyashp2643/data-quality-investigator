@@ -11,7 +11,7 @@ import pytest
 from dqagent.eval_runtime import Chat, summarize
 
 
-def test_http_usage_and_invalid_json():
+def test_http_usage_and_invalid_json(tmp_path):
     requests = []
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -32,12 +32,15 @@ def test_http_usage_and_invalid_json():
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        chat = Chat("protocol-test", endpoint=f"http://127.0.0.1:{server.server_port}/v1", key="fake-test-key")
+        chat = Chat("protocol-test", endpoint=f"http://127.0.0.1:{server.server_port}/v1", key="fake-test-key", json_mode=True, trace_path=tmp_path / "calls.json")
         assert chat.ask([{"role": "user", "content": "test"}]) == {"findings": []}
         assert chat.calls[0]["usage"]["total_tokens"] == 12
         with pytest.raises(json.JSONDecodeError):
             chat.ask([{"role": "user", "content": "test"}])
         assert len(chat.calls) == 2
+        saved = json.loads((tmp_path / "calls.json").read_text())
+        assert len(saved) == 2 and saved[1]["response"] == "not-json"
+        assert requests[0]["response_format"] == {"type": "json_object"}
         assert requests[0]["max_tokens"] == 1600
         assert requests[0]["model"] == "protocol-test"
     finally:
@@ -89,7 +92,7 @@ def test_cli_records_failed_model_workers_in_complete_report(tmp_path):
             self.rfile.read(int(self.headers["Content-Length"]))
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b'{"choices":[{"message":{"content":"invalid-json"}}]}')
+            self.wfile.write(b'{"choices":[{"message":{"content":"invalid-json"},"finish_reason":"length"}],"usage":{"total_tokens":12}}')
         def log_message(self, *_):
             pass
     server = HTTPServer(("127.0.0.1", 0), Handler)
@@ -105,6 +108,10 @@ def test_cli_records_failed_model_workers_in_complete_report(tmp_path):
         assert report["summary"]["methods"]["rules"]["successes"] == 1
         assert report["summary"]["methods"]["agent"]["errors"] == 1
         assert report["summary"]["methods"]["single_shot"]["errors"] == 1
+        failed = [row for row in report["results"] if row["status"] == "error"]
+        assert all(len(row["calls"]) == 1 and row["error"]["category"] == "model_output_truncated" for row in failed)
+        assert all(row["calls"][0]["usage"]["total_tokens"] == 12 for row in failed)
+        assert report["configuration"]["response_format"] == {"type": "json_object"}
         assert "fake-protocol-secret" not in output.read_text()
         assert output.with_suffix(".html").exists()
     finally:

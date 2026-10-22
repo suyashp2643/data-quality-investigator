@@ -43,3 +43,11 @@ that seed is development data too. Compare all three methods within each report;
 between old and new seeds cannot by themselves establish a causal improvement.
 
 No revised success rate is claimed until a real model run is reviewed.
+
+## JSON formatting follow-up
+
+The first protocol-v2 live check failed with a JSON decoding error in the agent worker, while
+the rules and single-shot workers completed. That log does not establish whether the model
+returned prose, malformed JSON or truncated content. The transport now requests JSON Object
+Mode for both model methods, and checkpoints responses before parsing. New reports retain
+failed call usage and finish reasons. No revised model accuracy claim is made.

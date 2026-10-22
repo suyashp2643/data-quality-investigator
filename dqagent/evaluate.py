@@ -174,14 +174,15 @@ def main():
     args = parser.parse_args()
     if args.worker:
         request = json.loads(args.worker.read_text())
-        chat = None if request["method"] == "rules" else Chat(request["model"])
+        chat = None if request["method"] == "rules" else Chat(request["model"], json_mode=True,
+            trace_path=Path(request["result"]).with_suffix(".calls.json"))
         Path(request["result"]).write_text(json.dumps(solve(request["case"], request["method"], chat)))
         return
     if not 1 <= args.limit <= 100:
         raise ValueError("limit must be between 1 and 100")
     run_matrix("dqagent.evaluate", make_cases(args.seed, args.limit), ["rules", "single_shot", "agent"],
                args.model, args.output, args.repeats, metadata={"generator_seed": args.seed,
-                   "agent_protocol_version": 2, "required_tools": list(REQUIRED_TOOLS), "max_agent_model_calls": 6})
+                   "agent_protocol_version": 2, "required_tools": list(REQUIRED_TOOLS), "max_agent_model_calls": 6, "response_format": {"type": "json_object"}})
 
 
 if __name__ == "__main__":

@@ -18,23 +18,32 @@ def digest(value: object) -> str:
 
 
 class Chat:
-    def __init__(self, model: str, endpoint: str | None = None, key: str | None = None):
+    def __init__(self, model: str, endpoint: str | None = None, key: str | None = None,
+                 *, json_mode: bool = False, trace_path: Path | None = None):
         self.model = model
         self.endpoint = endpoint or os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
         self.key = key if key is not None else os.environ["LLM_API_KEY"]
         self.calls = []
+        self.json_mode = json_mode
+        self.trace_path = trace_path
 
     def ask(self, messages: list[dict]) -> dict:
         payload = {"model": self.model, "messages": messages, "temperature": 0, "max_tokens": 1600}
+        if self.json_mode:
+            payload["response_format"] = {"type": "json_object"}
         request = urllib.request.Request(self.endpoint.rstrip("/") + "/chat/completions",
             data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "agent-evaluation/1.0", "Authorization": "Bearer " + self.key})
         started = time.monotonic()
         with urllib.request.urlopen(request, timeout=45) as response:
             body = json.load(response)
-        content = body["choices"][0]["message"]["content"]
+        choice = body["choices"][0]
+        content = choice["message"]["content"]
         self.calls.append({"request_hash": digest(payload), "response": content,
             "returned_model": body.get("model"), "usage": body.get("usage"),
+            "finish_reason": choice.get("finish_reason"),
             "seconds": round(time.monotonic() - started, 3)})
+        if self.trace_path is not None:
+            self.trace_path.write_text(json.dumps(self.calls))
         return json.loads(content)
 
 
@@ -120,6 +129,8 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
                     request = Path(directory) / "request.json"
                     result = Path(directory) / "result.json"
                     result.unlink(missing_ok=True)
+                    call_log = result.with_suffix(".calls.json")
+                    call_log.unlink(missing_ok=True)
                     request.write_text(json.dumps({"case": case, "method": method, "model": model, "result": str(result)}))
                     row = {"case": case["id"], "repeat": repeat, "method": method, "status": "error", "success": False}
                     started = time.monotonic()
@@ -129,6 +140,10 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
                         row.update(json.loads(result.read_text()))
                     else:
                         row["error"] = worker_error(process.stderr, process.returncode)
+                        if call_log.exists():
+                            row["calls"] = json.loads(call_log.read_text())
+                            if row["calls"] and row["calls"][-1].get("finish_reason") == "length":
+                                row["error"]["category"] = "model_output_truncated"
                     row["seconds"] = round(time.monotonic() - started, 3)
                     report["results"].append(row)
                     report["summary"] = summarize(report["results"])

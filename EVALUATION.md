@@ -9,7 +9,7 @@ A passing software test or the local HTTP protocol test below is not a real mode
 
 1. Open this repository's **Settings → Secrets and variables → Actions**.
 2. Add a repository secret named `LLM_API_KEY` with your provider API key. Never put it in code, a commit, an issue, or a chat.
-3. Optional: set repository variable `LLM_BASE_URL` to your trusted provider's chat-completions base URL (ending in `/v1` where applicable). The default is `https://api.openai.com/v1`. Providers must support `messages`, `temperature`, and `max_tokens`; incompatible requests count as errors, with no fake fallback.
+3. Optional: set repository variable `LLM_BASE_URL` to your trusted provider's chat-completions base URL (ending in `/v1` where applicable). The default is `https://api.openai.com/v1`. Providers must support `messages`, `temperature`, `max_tokens`, and `response_format: {"type":"json_object"}`; incompatible requests count as errors, with no fake fallback.
 4. Open **Actions → Live model comparison → Run workflow**. Enter the provider's exact model ID and start with **1 case, 1 repeat, seed 2605**. Seed 2604 is now development data. This makes paid API calls to your account. Check provider billing before expanding the run.
 5. Download the `live-model-comparison` artifact. It contains JSON and escaped HTML with per-attempt outcomes, model responses, paired comparisons, timings, hashes, and provider-reported token usage. Use only these live outputs for performance claims.
 
@@ -19,8 +19,9 @@ A provider request timeout or malformed response fails that attempt. Errors rema
 raw worker stderr is deliberately omitted from reports to avoid credential disclosure.
 A run with worker errors exits nonzero after saving its full report.
 Runs checkpoint after every attempt and refuse to overwrite an existing report. Interrupted runs have
-`complete: false`; do not present them as completed benchmarks. Failed workers may have consumed
-provider tokens that are not available in the report; total observed calls/usage is a lower bound when errors occur.
+`complete: false`; do not present them as completed benchmarks. Received model responses are checkpointed before parsing, including finish reason and token usage.
+Responses from failed workers are retained in the report. Calls that time out or fail before a response
+may have consumed provider tokens that are not available in the report; total observed calls/usage is a lower bound when errors occur.
 
 ## Local execution (Linux/macOS with `timeout`, or Linux container)
 
@@ -67,3 +68,16 @@ Record the commit, dataset hash, provider/model ID, date, number of cases and re
 counts for every method, paired wins/losses, latency, tool/model calls, available token usage,
 and representative failures. Publish complete outcomes even if the agent loses to the baseline.
 Do not convert a tiny benchmark percentage into a promise of job selection or production reliability.
+
+## JSON output transport revision
+
+Both model methods now request provider JSON Object Mode (`response_format: {"type":"json_object"}`).
+The output must still pass the existing response shape, tool allowlist, evidence guard and scoring checks.
+JSON syntax is not proof of a correct diagnosis. No malformed answer is rewritten, retried invisibly,
+or replaced by the rules baseline. The six-call and 1,600-output-token limits remain unchanged.
+Malformed and truncated responses remain failed attempts. Failed-worker response bodies, usage and
+finish reasons are retained so that formatting failures can be distinguished from token truncation.
+Earlier reports used prompt-only formatting; compare all methods again under the recorded new
+transport configuration before making performance claims. The authenticated live outcome is pending.
+
+Provider reference: https://console.groq.com/docs/structured-outputs#json-object-mode
