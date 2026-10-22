@@ -147,3 +147,13 @@ def test_worker_diagnostics_redact_provider_details():
     assert worker_error("json.decoder.JSONDecodeError: private response", 1)["category"] == "model_returned_invalid_json"
     assert worker_error("private unknown exception", 124)["category"] == "worker_timeout"
     assert "private" not in str(worker_error("private unknown exception", 1))
+
+
+def test_ansi_and_unexpected_response_diagnostics():
+    from dqagent.eval_runtime import worker_error
+    assert worker_error("\x1b[31mHTTPError: HTTP Error 403: Forbidden\x1b[0m", 1)["http_status"] == 403
+    result = worker_error("TypeError: secret-provider-response-must-not-leak", 1)
+    assert result["exception_type"] == "TypeError"
+    assert result["category"] == "unexpected_response_type"
+    assert "secret-provider" not in str(result)
+    assert worker_error("Usage: python -m portfolio.evaluate [OPTIONS]", 2)["category"] == "worker_cli_arguments_rejected"

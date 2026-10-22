@@ -68,7 +68,8 @@ def summarize(rows: list[dict]) -> dict:
 
 def worker_error(stderr: str, returncode: int) -> dict:
     """Whitelist failure categories; never publish raw provider messages or tracebacks."""
-    status = re.search(r"HTTP Error (\d{3})", stderr)
+    stderr = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", stderr)
+    status = re.search(r"HTTP Error\s+(\d{3})", stderr)
     categories = {400: "provider_rejected_request", 401: "provider_authentication_failed",
         403: "provider_access_denied", 404: "provider_model_or_endpoint_not_found",
         429: "provider_rate_limit_or_quota"}
@@ -79,10 +80,18 @@ def worker_error(stderr: str, returncode: int) -> dict:
     markers = {"JSONDecodeError:": "model_returned_invalid_json", "KeyError:": "response_missing_required_field",
         "ModuleNotFoundError:": "missing_dependency", "TimeoutExpired:": "sandbox_timeout",
         "TimeoutError:": "provider_timeout", "URLError:": "provider_connection_failed",
-        "SyntaxError:": "worker_syntax_error", "ValueError:": "invalid_response_or_tool"}
+        "SyntaxError:": "worker_syntax_error", "ValueError:": "invalid_response_or_tool",
+        "TypeError:": "unexpected_response_type", "ImportError:": "dependency_import_failed",
+        "RemoteDisconnected:": "provider_disconnected", "PermissionError:": "worker_permission_error"}
     category = next((name for marker, name in markers.items() if marker in stderr),
                     "worker_timeout" if returncode == 124 else "worker_failed")
-    return {"returncode": returncode, "category": category}
+    names = re.findall(r"^([A-Za-z_][A-Za-z0-9_.]{0,100}):", stderr, re.MULTILINE)
+    result = {"returncode": returncode, "category": category}
+    if names:
+        result["exception_type"] = names[-1]
+    if "Usage:" in stderr and returncode == 2:
+        result["category"] = "worker_cli_arguments_rejected"
+    return result
 
 
 def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, output: Path, repeats: int = 1) -> dict:
@@ -112,7 +121,7 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
                     row = {"case": case["id"], "repeat": repeat, "method": method, "status": "error", "success": False}
                     started = time.monotonic()
                     # OS timeout also bounds repeated model calls. Child errors cannot silently drop an attempt.
-                    process = subprocess.run(["timeout", "420", sys.executable, "-m", module, "--worker", str(request)], capture_output=True, text=True)
+                    process = subprocess.run(["timeout", "420", sys.executable, "-m", module, "--worker", str(request)], capture_output=True, text=True, env=dict(os.environ, TYPER_STANDARD_TRACEBACK="1", NO_COLOR="1"))
                     if process.returncode == 0 and result.exists():
                         row.update(json.loads(result.read_text()))
                     else:
@@ -123,7 +132,7 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
                     report["complete"] = len(report["results"]) == len(cases) * len(methods) * repeats
                     output.write_text(json.dumps(report, indent=2) + "\n")
                     output.with_suffix(".html").write_text("<!doctype html><meta charset=utf-8><title>Paired evaluation</title><h1>Paired evaluation</h1><pre>" + html.escape(json.dumps(report, indent=2)) + "</pre>")
-                    print(case["id"], method, row["status"], row.get("error", {}).get("category", ""), row.get("error", {}).get("http_status", ""), flush=True)
+                    print(case["id"], method, row["status"], row.get("error", {}).get("category", ""), json.dumps(row.get("error", {}), sort_keys=True), flush=True)
     if any(row["status"] == "error" for row in report["results"]):
         raise SystemExit("Evaluation finished with failed workers; inspect the report. No attempts were dropped.")
     return report
