@@ -1,5 +1,9 @@
 # Data Quality Investigator
 
+## Model comparison
+
+See [EVALUATION.md](EVALUATION.md) for a seeded mixed-fault comparison of rules, single-shot diagnosis, and adaptive tool use. No live model results have been published yet.
+
 An evidence-first investigation prototype with constrained model tools, deterministic checks, data fingerprinting, and durable proposal reviews.
 
 ## Status

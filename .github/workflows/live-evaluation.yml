@@ -1,0 +1,46 @@
+name: Live model comparison
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Exact chat-completions model ID supported by your provider
+        required: true
+        type: string
+      limit:
+        description: Number of cases (start with 1 to check compatibility and cost)
+        default: '1'
+        required: true
+        type: string
+      repeats:
+        description: Repetitions per case (1 to 5)
+        default: '1'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install typer
+      - name: Compare model and baselines
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          MODEL: ${{ inputs.model }}
+          LIMIT: ${{ inputs.limit }}
+          REPEATS: ${{ inputs.repeats }}
+        run: |
+          export LLM_BASE_URL="${LLM_BASE_URL:-https://api.openai.com/v1}"
+          python -m dqagent.evaluate --model "$MODEL" --limit "$LIMIT" --repeats "$REPEATS" --output results/live-evaluation.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-model-comparison
+          path: results/
+          if-no-files-found: warn
