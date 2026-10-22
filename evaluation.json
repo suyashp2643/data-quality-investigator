@@ -1,0 +1,61 @@
+{
+  "mode": "deterministic_fixture_baseline_NOT_LLM_benchmark",
+  "passed": 6,
+  "total": 6,
+  "results": [
+    {
+      "scenario": "healthy",
+      "expected": [],
+      "observed": [],
+      "passed": true
+    },
+    {
+      "scenario": "duplicates",
+      "expected": [
+        "duplicate_orders"
+      ],
+      "observed": [
+        "duplicate_orders"
+      ],
+      "passed": true
+    },
+    {
+      "scenario": "nulls",
+      "expected": [
+        "missing_amounts"
+      ],
+      "observed": [
+        "missing_amounts"
+      ],
+      "passed": true
+    },
+    {
+      "scenario": "stale",
+      "expected": [
+        "stale_data",
+        "low_volume"
+      ],
+      "observed": [
+        "stale_data",
+        "low_volume"
+      ],
+      "passed": true
+    },
+    {
+      "scenario": "missing_batch",
+      "expected": [
+        "low_volume"
+      ],
+      "observed": [
+        "low_volume"
+      ],
+      "passed": true
+    },
+    {
+      "scenario": "business_decline",
+      "expected": [],
+      "observed": [],
+      "passed": true
+    }
+  ]
+}

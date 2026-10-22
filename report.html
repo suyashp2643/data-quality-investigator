@@ -1,0 +1,85 @@
+<!doctype html><meta charset='utf-8'><title>Investigation report</title><style>body{max-width:1000px;margin:40px auto;font:16px system-ui;background:#101827;color:#e2e8f0}pre{white-space:pre-wrap;background:#1e293b;padding:24px;border-radius:12px}</style><h1>Data quality investigation</h1><pre>{
+  &quot;schema_version&quot;: 1,
+  &quot;question&quot;: &quot;Why did reported revenue change yesterday?&quot;,
+  &quot;planner&quot;: &quot;BaselinePlanner&quot;,
+  &quot;contract&quot;: {
+    &quot;expected_day&quot;: &quot;2026-10-21&quot;,
+    &quot;minimum_rows&quot;: 5
+  },
+  &quot;snapshot_hash&quot;: &quot;889a6d7b875764df01291e2cbeccbe2ea14229f7cf1c1573c9ac092b5c6423d7&quot;,
+  &quot;complete&quot;: true,
+  &quot;unexecuted_tools&quot;: [],
+  &quot;status&quot;: &quot;quality_findings&quot;,
+  &quot;findings&quot;: [
+    {
+      &quot;code&quot;: &quot;duplicate_orders&quot;,
+      &quot;evidence&quot;: &quot;duplicates&quot;,
+      &quot;proposal&quot;: &quot;Review duplicate order IDs against the source; do not delete automatically.&quot;
+    }
+  ],
+  &quot;trace&quot;: [
+    {
+      &quot;step&quot;: 1,
+      &quot;tool&quot;: &quot;volume&quot;,
+      &quot;sql&quot;: &quot;SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day&quot;,
+      &quot;result&quot;: [
+        {
+          &quot;day&quot;: &quot;2026-10-20&quot;,
+          &quot;rows&quot;: 10
+        },
+        {
+          &quot;day&quot;: &quot;2026-10-21&quot;,
+          &quot;rows&quot;: 11
+        }
+      ]
+    },
+    {
+      &quot;step&quot;: 2,
+      &quot;tool&quot;: &quot;duplicates&quot;,
+      &quot;sql&quot;: &quot;SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) &gt; 1&quot;,
+      &quot;result&quot;: [
+        {
+          &quot;order_id&quot;: &quot;b9&quot;,
+          &quot;copies&quot;: 2
+        }
+      ]
+    },
+    {
+      &quot;step&quot;: 3,
+      &quot;tool&quot;: &quot;null_amounts&quot;,
+      &quot;sql&quot;: &quot;SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL&quot;,
+      &quot;result&quot;: [
+        {
+          &quot;count&quot;: 0
+        }
+      ]
+    },
+    {
+      &quot;step&quot;: 4,
+      &quot;tool&quot;: &quot;freshness&quot;,
+      &quot;sql&quot;: &quot;SELECT MAX(day) AS latest_day FROM orders&quot;,
+      &quot;result&quot;: [
+        {
+          &quot;latest_day&quot;: &quot;2026-10-21&quot;
+        }
+      ]
+    },
+    {
+      &quot;step&quot;: 5,
+      &quot;tool&quot;: &quot;revenue&quot;,
+      &quot;sql&quot;: &quot;SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day&quot;,
+      &quot;result&quot;: [
+        {
+          &quot;day&quot;: &quot;2026-10-20&quot;,
+          &quot;revenue&quot;: 1000.0
+        },
+        {
+          &quot;day&quot;: &quot;2026-10-21&quot;,
+          &quot;revenue&quot;: 1100.0
+        }
+      ]
+    }
+  ],
+  &quot;limitation&quot;: &quot;Checks identify contract violations, not definitive root cause. A revenue decline can be genuine; reconcile business context. Proposals never execute writes.&quot;,
+  &quot;report_hash&quot;: &quot;0ef90f3c423e2e420265a0a07dd621b1866d6de097d8496de41aef3a817a91a2&quot;
+}</pre>

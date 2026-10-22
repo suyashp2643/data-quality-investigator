@@ -1,0 +1,61 @@
+<!doctype html><meta charset='utf-8'><title>Investigation report</title><style>body{max-width:1000px;margin:40px auto;font:16px system-ui;background:#101827;color:#e2e8f0}pre{white-space:pre-wrap;background:#1e293b;padding:24px;border-radius:12px}</style><h1>Data quality investigation</h1><pre>{
+  &quot;mode&quot;: &quot;deterministic_fixture_baseline_NOT_LLM_benchmark&quot;,
+  &quot;passed&quot;: 6,
+  &quot;total&quot;: 6,
+  &quot;results&quot;: [
+    {
+      &quot;scenario&quot;: &quot;healthy&quot;,
+      &quot;expected&quot;: [],
+      &quot;observed&quot;: [],
+      &quot;passed&quot;: true
+    },
+    {
+      &quot;scenario&quot;: &quot;duplicates&quot;,
+      &quot;expected&quot;: [
+        &quot;duplicate_orders&quot;
+      ],
+      &quot;observed&quot;: [
+        &quot;duplicate_orders&quot;
+      ],
+      &quot;passed&quot;: true
+    },
+    {
+      &quot;scenario&quot;: &quot;nulls&quot;,
+      &quot;expected&quot;: [
+        &quot;missing_amounts&quot;
+      ],
+      &quot;observed&quot;: [
+        &quot;missing_amounts&quot;
+      ],
+      &quot;passed&quot;: true
+    },
+    {
+      &quot;scenario&quot;: &quot;stale&quot;,
+      &quot;expected&quot;: [
+        &quot;stale_data&quot;,
+        &quot;low_volume&quot;
+      ],
+      &quot;observed&quot;: [
+        &quot;stale_data&quot;,
+        &quot;low_volume&quot;
+      ],
+      &quot;passed&quot;: true
+    },
+    {
+      &quot;scenario&quot;: &quot;missing_batch&quot;,
+      &quot;expected&quot;: [
+        &quot;low_volume&quot;
+      ],
+      &quot;observed&quot;: [
+        &quot;low_volume&quot;
+      ],
+      &quot;passed&quot;: true
+    },
+    {
+      &quot;scenario&quot;: &quot;business_decline&quot;,
+      &quot;expected&quot;: [],
+      &quot;observed&quot;: [],
+      &quot;passed&quot;: true
+    }
+  ]
+}</pre>

@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "question": "Why did reported revenue change yesterday?",
+  "planner": "BaselinePlanner",
+  "contract": {
+    "expected_day": "2026-10-21",
+    "minimum_rows": 5
+  },
+  "snapshot_hash": "889a6d7b875764df01291e2cbeccbe2ea14229f7cf1c1573c9ac092b5c6423d7",
+  "complete": true,
+  "unexecuted_tools": [],
+  "status": "quality_findings",
+  "findings": [
+    {
+      "code": "duplicate_orders",
+      "evidence": "duplicates",
+      "proposal": "Review duplicate order IDs against the source; do not delete automatically."
+    }
+  ],
+  "trace": [
+    {
+      "step": 1,
+      "tool": "volume",
+      "sql": "SELECT day, COUNT(*) AS rows FROM orders GROUP BY day ORDER BY day",
+      "result": [
+        {
+          "day": "2026-10-20",
+          "rows": 10
+        },
+        {
+          "day": "2026-10-21",
+          "rows": 11
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "tool": "duplicates",
+      "sql": "SELECT order_id, COUNT(*) AS copies FROM orders GROUP BY order_id HAVING COUNT(*) > 1",
+      "result": [
+        {
+          "order_id": "b9",
+          "copies": 2
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "tool": "null_amounts",
+      "sql": "SELECT COUNT(*) AS count FROM orders WHERE amount IS NULL",
+      "result": [
+        {
+          "count": 0
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "tool": "freshness",
+      "sql": "SELECT MAX(day) AS latest_day FROM orders",
+      "result": [
+        {
+          "latest_day": "2026-10-21"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "tool": "revenue",
+      "sql": "SELECT day, SUM(amount) AS revenue FROM orders GROUP BY day ORDER BY day",
+      "result": [
+        {
+          "day": "2026-10-20",
+          "revenue": 1000.0
+        },
+        {
+          "day": "2026-10-21",
+          "revenue": 1100.0
+        }
+      ]
+    }
+  ],
+  "limitation": "Checks identify contract violations, not definitive root cause. A revenue decline can be genuine; reconcile business context. Proposals never execute writes.",
+  "report_hash": "0ef90f3c423e2e420265a0a07dd621b1866d6de097d8496de41aef3a817a91a2"
+}
