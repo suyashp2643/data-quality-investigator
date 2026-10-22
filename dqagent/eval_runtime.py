@@ -27,7 +27,7 @@ class Chat:
     def ask(self, messages: list[dict]) -> dict:
         payload = {"model": self.model, "messages": messages, "temperature": 0, "max_tokens": 1600}
         request = urllib.request.Request(self.endpoint.rstrip("/") + "/chat/completions",
-            data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.key})
+            data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "agent-evaluation/1.0", "Authorization": "Bearer " + self.key})
         started = time.monotonic()
         with urllib.request.urlopen(request, timeout=45) as response:
             body = json.load(response)

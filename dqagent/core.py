@@ -80,7 +80,7 @@ class LLMPlanner:
         request = urllib.request.Request(
             os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/") + "/chat/completions",
             data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json", "Authorization": "Bearer " + os.environ["LLM_API_KEY"]},
+            headers={"Content-Type": "application/json", "User-Agent": "agent-evaluation/1.0", "Authorization": "Bearer " + os.environ["LLM_API_KEY"]},
         )
         with urllib.request.urlopen(request, timeout=30) as response:
             result = json.load(response)

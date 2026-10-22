@@ -15,6 +15,10 @@ def test_http_usage_and_invalid_json():
     requests = []
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
+            if self.headers.get("User-Agent") != "agent-evaluation/1.0":
+                self.send_response(403)
+                self.end_headers()
+                return
             requests.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
             content = '{"findings": []}' if len(requests) == 1 else 'not-json'
             body = json.dumps({"model": "protocol-test-only", "usage": {"total_tokens": 12},
