@@ -81,3 +81,8 @@ Earlier reports used prompt-only formatting; compare all methods again under the
 transport configuration before making performance claims. The authenticated live outcome is pending.
 
 Provider reference: https://console.groq.com/docs/structured-outputs#json-object-mode
+
+HTTP errors now retain a bounded provider error body in the failed call record, with the
+configured API key, common API-key patterns and Bearer tokens redacted. Raw error bodies are
+not printed in workflow logs. An HTTP error still fails the attempt; it is not retried or
+reclassified as a successful diagnosis. Review the artifact before publishing it.

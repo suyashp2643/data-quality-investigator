@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,17 +35,30 @@ class Chat:
         request = urllib.request.Request(self.endpoint.rstrip("/") + "/chat/completions",
             data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "agent-evaluation/1.0", "Authorization": "Bearer " + self.key})
         started = time.monotonic()
-        with urllib.request.urlopen(request, timeout=45) as response:
-            body = json.load(response)
+        try:
+            with urllib.request.urlopen(request, timeout=45) as response:
+                body = json.load(response)
+        except urllib.error.HTTPError as error:
+            detail = error.read(16_384).decode(errors="replace").replace(self.key, "[REDACTED]")
+            detail = re.sub(r"(?:gsk_|sk-)[A-Za-z0-9_-]+", "[REDACTED]", detail)
+            detail = re.sub(r"Bearer\s+[^\s\"']+", "Bearer [REDACTED]", detail)
+            self.calls.append({"request_hash": digest(payload), "response": None,
+                "http_status": error.code, "provider_error_body": detail,
+                "usage": None, "seconds": round(time.monotonic() - started, 3)})
+            self.save_calls()
+            raise
         choice = body["choices"][0]
         content = choice["message"]["content"]
         self.calls.append({"request_hash": digest(payload), "response": content,
             "returned_model": body.get("model"), "usage": body.get("usage"),
             "finish_reason": choice.get("finish_reason"),
             "seconds": round(time.monotonic() - started, 3)})
+        self.save_calls()
+        return json.loads(content)
+
+    def save_calls(self) -> None:
         if self.trace_path is not None:
             self.trace_path.write_text(json.dumps(self.calls))
-        return json.loads(content)
 
 
 def summarize(rows: list[dict]) -> dict:

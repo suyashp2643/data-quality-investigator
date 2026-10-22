@@ -217,3 +217,33 @@ def test_published_failure_report_and_fresh_seed_are_reproducible():
     assert report["summary"]["methods"]["agent"]["successes"] == 1
     assert make_cases(2605, 6) != report["cases"]
     assert {case["mask"] for case in make_cases(2605, 16)} == set(range(16))
+
+
+def test_http_rejection_keeps_reason_and_redacts_credentials(tmp_path):
+    import urllib.error
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": {"code": "json_validate_failed", "message": "Rejected diagnostic-test-key; gsk_otherSensitiveToken; Bearer anotherPrivateToken"}}).encode())
+        def log_message(self, *_):
+            pass
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        path = tmp_path / "calls.json"
+        chat = Chat("protocol-only", f"http://127.0.0.1:{server.server_port}/v1", "diagnostic-test-key", json_mode=True, trace_path=path)
+        with pytest.raises(urllib.error.HTTPError) as error:
+            chat.ask([{"role": "user", "content": "Return JSON"}])
+        assert error.value.code == 400
+        saved = json.loads(path.read_text())
+        assert len(saved) == 1 and saved[0]["http_status"] == 400
+        assert "json_validate_failed" in saved[0]["provider_error_body"]
+        assert all(secret not in path.read_text() for secret in ["diagnostic-test-key", "gsk_otherSensitiveToken", "anotherPrivateToken"])
+        assert saved[0]["response"] is None
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
