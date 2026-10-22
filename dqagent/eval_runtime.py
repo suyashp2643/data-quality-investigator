@@ -20,17 +20,20 @@ def digest(value: object) -> str:
 
 class Chat:
     def __init__(self, model: str, endpoint: str | None = None, key: str | None = None,
-                 *, json_mode: bool = False, trace_path: Path | None = None):
+                 *, json_mode: bool = False, trace_path: Path | None = None, response_format: dict | None = None):
         self.model = model
         self.endpoint = endpoint or os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
         self.key = key if key is not None else os.environ["LLM_API_KEY"]
         self.calls = []
         self.json_mode = json_mode
+        self.response_format = response_format
         self.trace_path = trace_path
 
     def ask(self, messages: list[dict]) -> dict:
         payload = {"model": self.model, "messages": messages, "temperature": 0, "max_tokens": 1600}
-        if self.json_mode:
+        if self.response_format is not None:
+            payload["response_format"] = self.response_format
+        elif self.json_mode:
             payload["response_format"] = {"type": "json_object"}
         request = urllib.request.Request(self.endpoint.rstrip("/") + "/chat/completions",
             data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "agent-evaluation/1.0", "Authorization": "Bearer " + self.key})

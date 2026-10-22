@@ -51,3 +51,15 @@ the rules and single-shot workers completed. That log does not establish whether
 returned prose, malformed JSON or truncated content. The transport now requests JSON Object
 Mode for both model methods, and checkpoints responses before parsing. New reports retain
 failed call usage and finish reasons. No revised model accuracy claim is made.
+
+## Confirmed cause and protocol v3
+
+The [provider rejection report](failures/2026-10-22-json-concatenation.json), retrieved from
+GitHub Actions run 39804334788, confirms `json_validate_failed`: the model concatenated many
+query objects in one generation. The first two query requests were valid.
+
+Protocol v3 uses a strict two-field action schema and explicit one-response-per-turn guidance.
+Query requests have null findings; final answers have a null tool. The baseline remains in
+JSON Object Mode, so output constraints differ and are recorded. Evidence requirements,
+scoring and call/token caps remain unchanged. Local protocol tests pass; authenticated live
+performance of this revision remains pending.

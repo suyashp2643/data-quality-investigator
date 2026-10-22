@@ -195,7 +195,7 @@ def test_evidence_guard_recovery_budget_and_no_answer_fallback(behavior):
         result = solve(case, "agent", Chat("protocol-test", f"http://127.0.0.1:{server.server_port}/v1", "fake-key"))
         assert result["success"] == (behavior == "recover")
         assert len(result["calls"]) == len(requests) == 6
-        assert result["unchanged"] and result["agent_protocol_version"] == 2
+        assert result["unchanged"] and result["agent_protocol_version"] == 3
         assert result["rejected_final_answers"][0]["reason"] == "insufficient_evidence"
         assert json.loads(requests[1]["messages"][-1]["content"])["final_answer_accepted"] is False
         assert result["status"] == ("incomplete" if behavior == "keep_stopping" else "ok")
@@ -243,6 +243,50 @@ def test_http_rejection_keeps_reason_and_redacts_credentials(tmp_path):
         assert "json_validate_failed" in saved[0]["provider_error_body"]
         assert all(secret not in path.read_text() for secret in ["diagnostic-test-key", "gsk_otherSensitiveToken", "anotherPrivateToken"])
         assert saved[0]["response"] is None
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+@pytest.mark.parametrize(("concatenate",), [(False,), (True,)])
+def test_strict_action_format_and_single_turn_boundary(concatenate, tmp_path):
+    from dqagent.evaluate import ACTION_FORMAT, make_cases, solve
+    requests = []
+    replies = [{"tool": name, "findings": None} for name in ["duplicates", "null_amounts", "freshness", "volume"]]
+    replies.append({"tool": None, "findings": []})
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            requests.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+            content = json.dumps(replies[len(requests)-1])
+            if concatenate:
+                content += json.dumps(replies[1])
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(json.dumps({"choices": [{"message": {"content": content}, "finish_reason": "stop"}]}).encode())
+        def log_message(self, *_):
+            pass
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        trace = tmp_path / "calls.json"
+        chat = Chat("protocol-only", f"http://127.0.0.1:{server.server_port}/v1", "fake-key", json_mode=True, response_format=ACTION_FORMAT, trace_path=trace)
+        if concatenate:
+            with pytest.raises(json.JSONDecodeError):
+                solve(make_cases(2605, 1)[0], "agent", chat)
+            assert len(requests) == 1
+            assert len(json.loads(trace.read_text())) == 1
+        else:
+            result = solve(make_cases(2605, 1)[0], "agent", chat)
+            assert result["success"] and result["tool_calls"] == 4
+            assert len(result["calls"]) == 5
+            assert result["missing_required_tools"] == []
+        assert all(request["response_format"] == ACTION_FORMAT for request in requests)
+        schema = requests[0]["response_format"]["json_schema"]
+        assert schema["strict"] is True and schema["schema"]["additionalProperties"] is False
+        assert schema["schema"]["required"] == ["tool", "findings"]
+        assert '"tools"' not in json.dumps({k:v for k,v in requests[0].items() if k != "messages"})
     finally:
         server.shutdown()
         thread.join()

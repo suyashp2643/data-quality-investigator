@@ -9,7 +9,7 @@ A passing software test or the local HTTP protocol test below is not a real mode
 
 1. Open this repository's **Settings → Secrets and variables → Actions**.
 2. Add a repository secret named `LLM_API_KEY` with your provider API key. Never put it in code, a commit, an issue, or a chat.
-3. Optional: set repository variable `LLM_BASE_URL` to your trusted provider's chat-completions base URL (ending in `/v1` where applicable). The default is `https://api.openai.com/v1`. Providers must support `messages`, `temperature`, `max_tokens`, and `response_format: {"type":"json_object"}`; incompatible requests count as errors, with no fake fallback.
+3. Optional: set repository variable `LLM_BASE_URL` to your trusted provider's chat-completions base URL (ending in `/v1` where applicable). The default is `https://api.openai.com/v1`. Providers must support `messages`, `temperature`, `max_tokens`, JSON Object Mode for the baseline, and strict JSON Schema output for the agent; incompatible requests count as errors, with no fake fallback.
 4. Open **Actions → Live model comparison → Run workflow**. Enter the provider's exact model ID and start with **1 case, 1 repeat, seed 2605**. Seed 2604 is now development data. This makes paid API calls to your account. Check provider billing before expanding the run.
 5. Download the `live-model-comparison` artifact. It contains JSON and escaped HTML with per-attempt outcomes, model responses, paired comparisons, timings, hashes, and provider-reported token usage. Use only these live outputs for performance claims.
 
@@ -71,7 +71,7 @@ Do not convert a tiny benchmark percentage into a promise of job selection or pr
 
 ## JSON output transport revision
 
-Both model methods now request provider JSON Object Mode (`response_format: {"type":"json_object"}`).
+The earlier transport revision requested provider JSON Object Mode (`response_format: {"type":"json_object"}`) for both model methods. Protocol v3 below replaces the agent format; the baseline retains JSON Object Mode.
 The output must still pass the existing response shape, tool allowlist, evidence guard and scoring checks.
 JSON syntax is not proof of a correct diagnosis. No malformed answer is rewritten, retried invisibly,
 or replaced by the rules baseline. The six-call and 1,600-output-token limits remain unchanged.
@@ -86,3 +86,23 @@ HTTP errors now retain a bounded provider error body in the failed call record, 
 configured API key, common API-key patterns and Bearer tokens redacted. Raw error bodies are
 not printed in workflow logs. An HTTP error still fails the attempt; it is not retried or
 reclassified as a successful diagnosis. Review the artifact before publishing it.
+
+## Protocol v3: one action per response
+
+The recorded [failed run](evaluation/failures/2026-10-22-json-concatenation.json) contains
+Groq error `json_validate_failed`. Its failed generation concatenated multiple query objects
+repeatedly. Two prior tool requests succeeded before the provider rejected that generation.
+This is not an authentication or warehouse-write failure.
+
+The agent now uses strict JSON Schema output (`json_schema`, `strict: true`) with exactly two
+required fields: `tool` and `findings`. A query is `{"tool":"freshness","findings":null}`;
+a final answer is `{"tool":null,"findings":[]}` or a findings array. The prompt requires one
+object and then a stop until the host returns the real query result. The controller rejects
+simultaneous query/final decisions, and preserves the four-check evidence guard and six-call cap.
+No native provider tools or streaming are combined with structured output. Provider support for
+strict schema mode is required; GPT-OSS 120B is listed by Groq as supporting it.
+
+The baseline still uses the previous JSON Object Mode. The agent configuration now includes
+its stricter output constraint; the comparison is between complete configurations, not an
+isolated test of orchestration. Scoring and fault labels are unchanged. Reports record agent
+protocol version 3 and both output formats. No new model success rate is claimed yet.
