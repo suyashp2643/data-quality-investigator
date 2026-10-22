@@ -137,3 +137,13 @@ def test_adaptive_tool_loop_with_real_local_http_boundary():
         server.shutdown()
         thread.join()
         server.server_close()
+
+
+def test_worker_diagnostics_redact_provider_details():
+    from dqagent.eval_runtime import worker_error
+    assert worker_error("urllib.error.HTTPError: HTTP Error 401: do-not-expose-test-key", 1) == {
+        "returncode": 1, "http_status": 401, "category": "provider_authentication_failed"}
+    assert worker_error("HTTP Error 429: account private detail", 1)["category"] == "provider_rate_limit_or_quota"
+    assert worker_error("json.decoder.JSONDecodeError: private response", 1)["category"] == "model_returned_invalid_json"
+    assert worker_error("private unknown exception", 124)["category"] == "worker_timeout"
+    assert "private" not in str(worker_error("private unknown exception", 1))

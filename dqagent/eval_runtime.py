@@ -3,6 +3,7 @@ import hashlib
 import html
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -65,6 +66,25 @@ def summarize(rows: list[dict]) -> dict:
     return {"methods": summary, "paired": comparisons}
 
 
+def worker_error(stderr: str, returncode: int) -> dict:
+    """Whitelist failure categories; never publish raw provider messages or tracebacks."""
+    status = re.search(r"HTTP Error (\d{3})", stderr)
+    categories = {400: "provider_rejected_request", 401: "provider_authentication_failed",
+        403: "provider_access_denied", 404: "provider_model_or_endpoint_not_found",
+        429: "provider_rate_limit_or_quota"}
+    if status:
+        code = int(status.group(1))
+        return {"returncode": returncode, "http_status": code,
+            "category": categories.get(code, "provider_http_error")}
+    markers = {"JSONDecodeError:": "model_returned_invalid_json", "KeyError:": "response_missing_required_field",
+        "ModuleNotFoundError:": "missing_dependency", "TimeoutExpired:": "sandbox_timeout",
+        "TimeoutError:": "provider_timeout", "URLError:": "provider_connection_failed",
+        "SyntaxError:": "worker_syntax_error", "ValueError:": "invalid_response_or_tool"}
+    category = next((name for marker, name in markers.items() if marker in stderr),
+                    "worker_timeout" if returncode == 124 else "worker_failed")
+    return {"returncode": returncode, "category": category}
+
+
 def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, output: Path, repeats: int = 1) -> dict:
     if not 1 <= repeats <= 5 or not model:
         raise ValueError("Specify a model and between 1 and 5 repeats")
@@ -96,14 +116,14 @@ def run_matrix(module: str, cases: list[dict], methods: list[str], model: str, o
                     if process.returncode == 0 and result.exists():
                         row.update(json.loads(result.read_text()))
                     else:
-                        row["error"] = {"returncode": process.returncode, "category": "worker_failed_or_timed_out", "note": "Check provider settings; raw stderr omitted to avoid leaking credentials."}
+                        row["error"] = worker_error(process.stderr, process.returncode)
                     row["seconds"] = round(time.monotonic() - started, 3)
                     report["results"].append(row)
                     report["summary"] = summarize(report["results"])
                     report["complete"] = len(report["results"]) == len(cases) * len(methods) * repeats
                     output.write_text(json.dumps(report, indent=2) + "\n")
                     output.with_suffix(".html").write_text("<!doctype html><meta charset=utf-8><title>Paired evaluation</title><h1>Paired evaluation</h1><pre>" + html.escape(json.dumps(report, indent=2)) + "</pre>")
-                    print(case["id"], method, row["status"], flush=True)
+                    print(case["id"], method, row["status"], row.get("error", {}).get("category", ""), row.get("error", {}).get("http_status", ""), flush=True)
     if any(row["status"] == "error" for row in report["results"]):
         raise SystemExit("Evaluation finished with failed workers; inspect the report. No attempts were dropped.")
     return report
